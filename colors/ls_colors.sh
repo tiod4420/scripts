@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# TODO: dircolors --print-ls-colors
+
 [ -f "$1" ] && eval $(dircolors "$1")
 
 ls_colors=(${LS_COLORS//:/ })

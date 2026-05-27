@@ -1,14 +1,40 @@
 #!/usr/bin/env bash
 
-if [ 1 -ne "$#" ]; then
-	echo "$0: missing destinaty directory" >&2
+set -Eeuo pipefail
+
+# Backup directories
+BACKUP_DIRS=(
+	${HOME}/Backups
+	${HOME}/Classes
+	${HOME}/Documents
+	${HOME}/Ebooks
+	${HOME}/Games
+	${HOME}/Music
+	${HOME}/Pictures
+	${HOME}/Scans
+	${HOME}/Sync
+	${HOME}/Videos
+	${HOME}/Workspace
+)
+
+MOUNT_DIR=$(realpath "$1")
+
+# Check if destination exists
+if [ ! -d "$MOUNT_DIR" ]; then
+	echo "$0: invalid directory $MOUNT_DIR" >&2
 	exit 1
 fi
 
 # Backup directories and delete extra files
-rsync -aPh --delete ${HOME}/Documents "$1"
-rsync -aPh --delete ${HOME}/Dropbox   "$1"
-rsync -aPh --delete ${HOME}/Ebooks    "$1"
-rsync -aPh --delete ${HOME}/Music     "$1"
-rsync -aPh --delete ${HOME}/Pictures  "$1"
-rsync -aPh --delete ${HOME}/Workspace "$1"
+for dir in "${BACKUP_DIRS[@]}"; do
+	if [ ! -d "$dir" ]; then
+		echo "$0: missing directory $dir" >&2
+		continue
+	fi
+
+	# Remove trailing '/' from path
+	dir=$(realpath "$dir")
+
+	# rsync directory (trailing '/' needed)
+	rsync -aPh --delete "$dir" "${MOUNT_DIR}/"
+done

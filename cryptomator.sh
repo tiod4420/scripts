@@ -8,4 +8,5 @@ if [ ! -d "$safe" ]; then
 fi
 
 # Backup and delete extra files
-rsync -aPh --delete ${HOME}/Documents/ "$safe"
+rsync -aPh --delete ${HOME}/Backup "$safe"
+rsync -aPh --delete ${HOME}/Documents "$safe"

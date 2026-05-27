@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 
+set -Eeuo pipefail
+
 DISK=${1:-/dev/nvme0n1p2}
 
+# Wipe existing keys
 systemd-cryptenroll --wipe-slot=tpm2 ${DISK}
-RES=$?; [ 0 -ne $RES ] && exit 1
 
-systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+1+2+3+4+5+7+8 ${DISK}
-RES=$?; [ 0 -ne $RES ] && exit 1
+# Enroll new keys
+# PCR0: platform-code (UEFI firmware), not used as SecureBoot should verify it
+# PCR4: boot-loader-code (UKI binary), not used as SecureBoot should verify it
+# PCR7: secure-boot-policy (PK/KEK/DB/DBX)
+# --tpm2-public-key not needed as key is in default path
+systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7 ${DISK}
