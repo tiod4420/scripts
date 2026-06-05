@@ -5,9 +5,9 @@ set -Eeuo pipefail
 # Backup directories
 BACKUP_DIRS=(
 	${HOME}/Backups
-	${HOME}/Classes
 	${HOME}/Documents
 	${HOME}/Ebooks
+	${HOME}/Education
 	${HOME}/Games
 	${HOME}/Music
 	${HOME}/Pictures
