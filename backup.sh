@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 
 # Backup directories
-BACKUP_DIRS=(
+SOURCE_DIRS=(
 	${HOME}/Backups
 	${HOME}/Documents
 	${HOME}/Ebooks
@@ -17,18 +17,23 @@ BACKUP_DIRS=(
 	${HOME}/Workspace
 )
 
-MOUNT_DIR=$(realpath "$1")
-
 # Check if destination exists
-if [ ! -d "$MOUNT_DIR" ]; then
-	echo "$0: invalid directory $MOUNT_DIR" >&2
+if [ -z "${1:-}" ]; then
+	echo "usage: $0 [BACKUP_DIR]" >&2
+	exit 1
+fi
+
+BACKUP_DIR=$(realpath "$1")
+
+if [ ! -d "$BACKUP_DIR" ]; then
+	echo "$0: backup directory '$BACKUP_DIR' does not exist" >&2
 	exit 1
 fi
 
 # Backup directories and delete extra files
-for dir in "${BACKUP_DIRS[@]}"; do
+for dir in "${SOURCE_DIRS[@]}"; do
 	if [ ! -d "$dir" ]; then
-		echo "$0: missing directory $dir" >&2
+		echo "$0: missing directory '$dir'" >&2
 		continue
 	fi
 
@@ -36,5 +41,5 @@ for dir in "${BACKUP_DIRS[@]}"; do
 	dir=$(realpath "$dir")
 
 	# rsync directory (trailing '/' needed)
-	rsync -aPh --delete "$dir" "${MOUNT_DIR}/"
+	rsync -aPh --delete "$dir" "${BACKUP_DIR}/"
 done

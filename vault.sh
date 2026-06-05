@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 
 # Backup and vault directories
-BACKUP_DIRS=(
+SOURCE_DIRS=(
 	${HOME}/Backups
 	${HOME}/Documents
 )
@@ -59,7 +59,7 @@ cleanup() {
 
 # Check if vault exists
 if  [ ! -d "$VAULT_DIR" ]; then
-	echo "$0: vault directory ${VAULT_DIR} does not exist" >&2
+	echo "$0: vault directory '${VAULT_DIR}' does not exist" >&2
 	exit 1
 fi
 
@@ -71,9 +71,9 @@ trap cleanup EXIT
 vault_mount "$VAULT_DIR" "$MOUNT_DIR"
 
 # Backup directories and delete extra files
-for dir in "${BACKUP_DIRS[@]}"; do
+for dir in "${SOURCE_DIRS[@]}"; do
 	if [ ! -d "$dir" ]; then
-		echo "$0: missing directory $dir" >&2
+		echo "$0: missing directory '$dir'" >&2
 		continue
 	fi
 
