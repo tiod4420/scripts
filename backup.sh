@@ -4,17 +4,17 @@ set -Eeuo pipefail
 
 # Backup directories
 SOURCE_DIRS=(
-	${HOME}/Backups
-	${HOME}/Documents
-	${HOME}/Ebooks
-	${HOME}/Education
-	${HOME}/Games
-	${HOME}/Music
-	${HOME}/Pictures
-	${HOME}/Scans
-	${HOME}/Sync
-	${HOME}/Videos
-	${HOME}/Workspace
+	$HOME/Backups
+	$HOME/Documents
+	$HOME/Ebooks
+	$HOME/Education
+	$HOME/Games
+	$HOME/Music
+	$HOME/Pictures
+	$HOME/Scans
+	$HOME/Sync
+	$HOME/Videos
+	$HOME/Workspace
 )
 
 # Check if destination exists
@@ -41,5 +41,5 @@ for dir in "${SOURCE_DIRS[@]}"; do
 	dir=$(realpath "$dir")
 
 	# rsync directory (trailing '/' needed)
-	rsync -aPh --delete "$dir" "${BACKUP_DIR}/"
+	rsync -aPh --delete "$dir" "$BACKUP_DIR/"
 done

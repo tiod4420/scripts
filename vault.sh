@@ -4,11 +4,11 @@ set -Eeuo pipefail
 
 # Backup and vault directories
 SOURCE_DIRS=(
-	${HOME}/Backups
-	${HOME}/Documents
+	$HOME/Backups
+	$HOME/Documents
 )
 
-VAULT_DIR="${1:-${HOME}/Sync/Vault}"
+VAULT_DIR="${1:-$HOME/Sync/Vault}"
 
 # Mount and unmount functions
 is_gocryptfs() {
@@ -47,28 +47,29 @@ cleanup() {
 	set +e
 
 	# Unmount vault and wait a bit in case resource is busy
-	vault_unmount "$VAULT_DIR" "$MOUNT_DIR"
+	vault_unmount "$VAULT_DIR" "$BACKUP_DIR"
 	sync
 	sleep 1
 
 	# Delete mount directory
-	[ -d "$MOUNT_DIR" ] && rmdir "$MOUNT_DIR"
+	[ -d "$BACKUP_DIR" ] && rmdir "$BACKUP_DIR"
 
 	exit $ret
 }
 
 # Check if vault exists
 if  [ ! -d "$VAULT_DIR" ]; then
-	echo "$0: vault directory '${VAULT_DIR}' does not exist" >&2
+	echo "$0: vault directory '$VAULT_DIR' does not exist" >&2
 	exit 1
 fi
 
 # Create mount directory and setup cleanup
-MOUNT_DIR=$(mktemp --tmpdir --directory vault-mnt.XXXXXXXXXX)
+BACKUP_DIR=$(mktemp --tmpdir --directory vault-mnt.XXXXXXXXXX)
+echo "Mounting vault at: $BACKUP_DIR"
 trap cleanup EXIT
 
 # Mount vault
-vault_mount "$VAULT_DIR" "$MOUNT_DIR"
+vault_mount "$VAULT_DIR" "$BACKUP_DIR"
 
 # Backup directories and delete extra files
 for dir in "${SOURCE_DIRS[@]}"; do
@@ -81,5 +82,5 @@ for dir in "${SOURCE_DIRS[@]}"; do
 	dir=$(realpath "$dir")
 
 	# rsync directory (trailing '/' needed)
-	rsync -aPh --delete "$dir" "${MOUNT_DIR}/"
+	rsync -aPh --delete "$dir" "$BACKUP_DIR/"
 done
