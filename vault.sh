@@ -8,7 +8,7 @@ SOURCE_DIRS=(
 	$HOME/Documents
 )
 
-VAULT_DIR="${1:-$HOME/Sync/Vault}"
+VAULT_DIR=${1:-$HOME/Sync/Vault}
 
 # Mount and unmount functions
 is_gocryptfs() {
