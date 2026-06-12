@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 
-# Cargo packages
-if command -v cargo &> /dev/null; then
-	# Generate cargo.txt
-	cargo install --list > cargo.txt
-fi
+set -Eeuo pipefail
 
 # Pacman packages
 if command -v pacman &> /dev/null; then
@@ -27,11 +23,22 @@ if command -v pacman &> /dev/null; then
 	pacman -Qq > all.txt
 fi
 
+# Homebrew packages
+if command -v brew &> /dev/null; then
+	brew list --installed-on-request > homebrew.txt
+fi
+
 # MacPort packages
 if command -v port &> /dev/null; then
-	# Generate MacPorts list
 	port -q echo requested > macports.txt
 fi
 
-# TODO: homebrew packages
-# TODO: termux packages
+# Termux packages
+if command -v pkg &> /dev/null; then
+	pkg list-all --manual-installed | cut -d'/' -f1 > termux.txt
+fi
+
+# Cargo packages
+if command -v cargo &> /dev/null; then
+	cargo install --list > cargo.txt
+fi
