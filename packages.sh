@@ -34,8 +34,8 @@ if command -v port &> /dev/null; then
 fi
 
 # Termux packages
-if command -v pkg &> /dev/null; then
-	pkg list-all --manual-installed | cut -d'/' -f1 > termux.txt
+if command -v apt-mark &> /dev/null; then
+	apt-mark showmanual > termux.txt
 fi
 
 # Cargo packages
