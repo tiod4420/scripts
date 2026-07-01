@@ -43,6 +43,8 @@ vault_unmount() {
 cleanup() {
 	local ret=$?
 
+	echo "Unmounting vault at: $BACKUP_DIR"
+
 	# Disable exit on failure
 	set +e
 
