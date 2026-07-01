@@ -9,14 +9,15 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 
-from itertools import chain
 from argparse import ArgumentParser
 from datetime import datetime, timedelta
 from pathlib import Path
 
-ASKED_CONFIRM = False
-DURATION_DEFAULT = 2
-RENDERING_CHOICSE = [
+
+DEFAULT_DEPLOY = False
+DEFAULT_RENDERING = "stretched"
+DEFAULT_TRANSITION = 2
+CHOICES_RENDERING = [
     "none",
     "wallpaper",
     "centered",
@@ -25,27 +26,27 @@ RENDERING_CHOICSE = [
     "zoom",
     "spanned",
 ]
-RENDERING_DEFAULT = "stretched"
+RE_FILENAME = re.compile(r"[^a-z0-9_.-]")
 SECONDS_PER_DAY = 24 * 60 * 60
-WRITE_DEFAULT = False
 XDG_DATA_HOME = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
 
 
 def main() -> None:
+    # Flag if overwrite confirmation was asked
+    asked = False
+
     # Parse parameters
     parser = parser_create()
     args = parser.parse_args()
 
     try:
         # Get list of files
-        files = list(chain.from_iterable(map(filelist_generator, args.files)))
-        if not files:
+        if not (files := [f for file in args.files for f in filelist_generator(file)]):
             raise ValueError("No files in provided directories")
 
         # Normalize slideshow name
-        slideshow_name = re.sub(r"[^a-z0-9_.-]", "-", args.name.lower()).strip(".-")
-        if not slideshow_name:
-            raise ValueError(f"{slideshow_name}: Cannot be turned into filename")
+        if not (slideshow_name := RE_FILENAME.sub("-", args.name.lower()).strip(".-")):
+            raise ValueError(f"{args.name}: Cannot be turned into filename")
 
         # Get slideshow path
         if args.path.suffix == ".xml":
@@ -62,66 +63,39 @@ def main() -> None:
         entry_file = f"desktop-backgrounds-{slideshow_name}.xml"
         entry_path = (entry_dir / entry_file).resolve()
 
-        # Make slideshow XML file
-        slideshow = slideshow_make(files, args.duration)
-
-        # Make entry XML file
+        # Make slideshow and entry XML files
+        slideshow = slideshow_make(files, args.transition)
         entry = entry_make(args.name, slideshow_path, args.rendering)
 
         # Write slideshow file
-        if args.write and confirm_replace(slideshow_path):
-            actual_slideshow_path = slideshow_path
-        else:
-            actual_slideshow_path = Path(slideshow_path.name)
+        orig_slideshow_path = slideshow_path
+        slideshow_path, slideshow_asked = prepare_path(slideshow_path, args.deploy)
+        asked |= slideshow_asked
 
-        if not actual_slideshow_path.parent.exists():
-            actual_slideshow_path.parent.mkdir(parents=True)
-
-        with actual_slideshow_path.open("wb") as f:
+        with slideshow_path.open("wb") as f:
             f.write(ET.tostring(slideshow, encoding="UTF-8") + b"\n")
 
         # Write entry file
-        if args.write and confirm_replace(entry_path):
-            actual_entry_path = entry_path
-        else:
-            actual_entry_path = Path(entry_path.name)
+        orig_entry_path = entry_path
+        entry_path, entry_asked = prepare_path(entry_path, args.deploy)
+        asked |= entry_asked
 
-        if not actual_entry_path.parent.exists():
-            actual_entry_path.parent.mkdir(parents=True)
-
-        with actual_entry_path.open("wb") as f:
+        with entry_path.open("wb") as f:
             f.write(b'<?xml version="1.0" encoding="UTF-8"?>\n')
             f.write(b'<!DOCTYPE wallpapers SYSTEM "gnome-wp-list.dtd">\n')
             f.write(ET.tostring(entry, encoding="UTF-8") + b"\n")
 
         # Print output files if deployment is needed
-        slideshow_path = home_relative(slideshow_path)
-        actual_slideshow_path = home_relative(actual_slideshow_path)
-        entry_path = home_relative(entry_path)
-        actual_entry_path = home_relative(actual_entry_path)
+        if (slideshow_path, entry_path) != (orig_slideshow_path, orig_entry_path):
+            print(f"{'\n' if asked else ''}Deploy files:")
 
-        if (slideshow_path, entry_path) != (actual_slideshow_path, actual_entry_path):
-            if ASKED_CONFIRM:
-                print("")
+            if slideshow_path != orig_slideshow_path:
+                print(f"mv {homepath(orig_slideshow_path)} {homepath(slideshow_path)}")
 
-            print("Deploy files:")
-            if actual_slideshow_path != slideshow_path:
-                print(f"mv {actual_slideshow_path} {slideshow_path}")
-            if actual_entry_path != entry_path:
-                print(f"mv {actual_entry_path} {entry_path}")
-    except Exception as e:
+            if entry_path != orig_entry_path:
+                print(f"mv {homepath(orig_entry_path)} {homepath(entry_path)}")
+    except (ValueError, FileNotFoundError) as e:
         sys.exit(f"{parser.prog}: {e}")
-
-
-def confirm_replace(file: Path) -> bool:
-    global ASKED_CONFIRM
-
-    if file.exists():
-        ASKED_CONFIRM = True
-        answer = input(f"{file} already exists, replace it? [y/N]: ").strip()
-        return answer.lower() in ("y", "yes")
-    else:
-        return True
 
 
 def entry_make(name: str, path: Path, rendering: str) -> ET.Element:
@@ -139,7 +113,7 @@ def entry_make(name: str, path: Path, rendering: str) -> ET.Element:
     return wallpapers
 
 
-def filelist_generator(file: Path):
+def filelist_generator(file: Path) -> Iterator[Path]:
     if file.is_file():
         yield file
     elif file.is_dir():
@@ -148,7 +122,7 @@ def filelist_generator(file: Path):
         raise FileNotFoundError(f"{file}: No such file or directory")
 
 
-def home_relative(path: Path) -> Path:
+def homepath(path: Path) -> Path:
     path = path.resolve()
     home = Path.home()
 
@@ -165,10 +139,10 @@ def parser_create() -> ArgumentParser:
 
     parser.add_argument(
         "-d",
-        "--duration",
-        help="duration in seconds for image transitions (default: %(default)s)",
-        type=int,
-        default=DURATION_DEFAULT,
+        "--deploy",
+        help="deploy files at destination (default: %(default)s)",
+        default=DEFAULT_DEPLOY,
+        action="store_true",
     )
     parser.add_argument(
         "-n",
@@ -189,16 +163,16 @@ def parser_create() -> ArgumentParser:
         "--rendering",
         help="background rendering (default: %(default)s): %(choices)s",
         type=str,
-        default=RENDERING_DEFAULT,
-        choices=RENDERING_CHOICSE,
+        default=DEFAULT_RENDERING,
+        choices=CHOICES_RENDERING,
         metavar="RENDERING",
     )
     parser.add_argument(
-        "-w",
-        "--write",
-        help="write files at destination (default: %(default)s)",
-        default=WRITE_DEFAULT,
-        action="store_true",
+        "-t",
+        "--transition",
+        help="duration in seconds for image transitions (default: %(default)s)",
+        type=int,
+        default=DEFAULT_TRANSITION,
     )
     parser.add_argument(
         "files",
@@ -210,6 +184,22 @@ def parser_create() -> ArgumentParser:
     return parser
 
 
+def prepare_path(file: Path, deploy: bool) -> (Path, bool):
+    asked = False
+
+    if not deploy:
+        file = Path(file.name)
+    elif file.exists():
+        asked = True
+        answer = input(f"{homepath(file)} exists, overwrite it? [y/N]: ").strip()
+        if answer.lower() not in ("y", "yes"):
+            file = Path(file.name)
+
+    file.parent.mkdir(parents=True, exist_ok=True)
+
+    return (file, asked)
+
+
 def slideshow_make(files: list[Paths], duration: int) -> ET.Element:
     dt = datetime.fromisoformat("1970-01-01T00:00:00")
 
@@ -219,28 +209,27 @@ def slideshow_make(files: list[Paths], duration: int) -> ET.Element:
     # Set start time
     starttime = ET.SubElement(background, "starttime")
     for field in ["year", "month", "day", "hour", "minute", "second"]:
-        ET.SubElement(starttime, field).text = "{:02d}".format(getattr(dt, field))
+        ET.SubElement(starttime, field).text = f"{getattr(dt, field):02d}"
 
     if len(files) == 1:
         # Add single slide
-        slideshow_make_static(background, files[0], SECONDS_PER_DAY)
+        slideshow_static(background, files[0], SECONDS_PER_DAY)
     else:
         # Calculate transition time
-        static_time = SECONDS_PER_DAY - (duration * len(files))
-        if static_time < 0:
+        if (static_time := SECONDS_PER_DAY - (duration * len(files))) < 0:
             raise ValueError("Too many images, static image time is negative")
 
         static_duration = static_time // len(files)
         remainder = static_time % len(files)
 
         # Add static slides and transitions
-        for pair in zip(files, files[1:] + files[:1]):
+        for pair in zip(files, files[1:] + files[:1], strict=True):
             transition_duration = duration
             if pair[0] == files[-1]:
                 transition_duration += remainder
 
-            slideshow_make_static(background, pair[0], static_duration)
-            slideshow_make_transition(background, pair, transition_duration)
+            slideshow_static(background, pair[0], static_duration)
+            slideshow_transition(background, pair, transition_duration)
 
     # Indent tree
     ET.indent(background)
@@ -248,7 +237,7 @@ def slideshow_make(files: list[Paths], duration: int) -> ET.Element:
     return background
 
 
-def slideshow_make_static(root: ET.Element, file: Path, duration: int):
+def slideshow_static(root: ET.Element, file: Path, duration: int) -> None:
     time = timedelta(seconds=duration)
 
     root.append(ET.Comment(f"{file.name} for {time} hours"))
@@ -257,7 +246,7 @@ def slideshow_make_static(root: ET.Element, file: Path, duration: int):
     ET.SubElement(static, "file").text = str(file.resolve())
 
 
-def slideshow_make_transition(root: ET.Element, pair: (Path, Path), duration: int):
+def slideshow_transition(root: ET.Element, pair: (Path, Path), duration: int) -> None:
     time = timedelta(seconds=duration)
 
     root.append(ET.Comment(f"{pair[0].name} to {pair[1].name} for {time} hours"))
