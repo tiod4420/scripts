@@ -5,22 +5,24 @@ set -Eeuo pipefail
 # Pacman packages
 if command -v pacman &> /dev/null; then
 	# Generate gnome.txt
-	pacman -Qge | grep '^gnome ' | cut -d' ' -f2 > gnome.txt
-
-	# Generate gnome-extra.txt
-	pacman -Qge | grep '^gnome-extra ' | cut -d' ' -f2 > gnome-extra.txt
+	pacman -Qge | grep '^gnome[^ ]*' | cut -d' ' -f2 > gnome.txt
 
 	# Generate texlive.txt
-	pacman -Qge | grep '^texlive' | cut -d' ' -f2 > texlive.txt
+	pacman -Qge | grep '^texlive[^ ]*' | cut -d' ' -f2 > texlive.txt
 
 	# Generate aur.txt
 	pacman -Qqm > aur.txt
 
 	# Generate pacman.txt
-	pacman -Qqe | grep -v -x -f gnome.txt -f gnome-extra.txt -f texlive.txt -f aur.txt > pacman.txt
+	pacman -Qqe | grep -xv -f gnome.txt -f texlive.txt -f aur.txt > pacman.txt
 
 	# Generate all.txt
 	pacman -Qq > all.txt
+fi
+
+# Cargo packages
+if command -v cargo &> /dev/null; then
+	cargo install --list > cargo.txt
 fi
 
 # Homebrew packages
@@ -36,9 +38,4 @@ fi
 # Termux packages
 if command -v apt-mark &> /dev/null; then
 	apt-mark showmanual > termux.txt
-fi
-
-# Cargo packages
-if command -v cargo &> /dev/null; then
-	cargo install --list > cargo.txt
 fi
