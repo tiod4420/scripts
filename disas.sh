@@ -1,62 +1,99 @@
 #!/usr/bin/env bash
 #
-# Disassemble function
+# Objdump disassembly helper
 
-local OPTARG
-local OPTIND
-local opts
-local objdump
-local version
-local binary
-local arch
-local symbols
-local arch_args
-local args
+# Display error message, usage, and quit
+error() {
+	local msg=${1:-error}
+	local ret=${2:-1}
 
-# Set objdump binary
-objdump=objdump
-[ -n "$OBJDUMP" ] && objdump=$OBJDUMP
+	echo "$0: $msg" >&2
+	usage >&2
 
-# Parse arguments
-while getopts ":a:s:" opts; do
-	case "$opts" in
-		a) arch=$OPTARG;;
-		s) symbols=$OPTARG;;
-		\?) (1>&2 echo "${FUNCNAME}: invalid parameter: -${OPTARG}") && return 1;;
+	exit $ret
+}
+
+# Display usage
+usage() {
+	echo "usage: $0 [-h] [-o OBJDUMP] [-s SYMBOLS] binary"
+	echo ""
+	echo "Objdump disassembly helper"
+	echo ""
+	echo "positional arguments:"
+	echo "  binary                       binary file to disassemble"
+	echo ""
+	echo "options:"
+	echo "  -o, --objdump OBJDUMP        objdump command to use for disassembly"
+	echo "                               (default: environment variable OBJDUMP, or 'objdump' if not set)"
+	echo "  -s, --symbols SYMBOLS        list of symbols to disassemble"
+	echo "                               (GNU objdump doesn't support multiple symbols)"
+	echo "  -h, --help                   show this help message and exit"
+}
+
+# Get objdump flavour (GNU or LLVM)
+flavor() {
+	local version=$($1 --version 2> /dev/null | head -n 1)
+
+	case "${version,,}" in
+		*gnu*) echo "gnu" ;;
+		*apple*|*llvm*) echo "llvm" ;;
+	esac
+}
+
+OBJDUMP=${OBJDUMP:-}
+SYMBOLS=
+
+# Parse options
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+		-o|--objdump)
+			[ -z "${2:-}" ] && error "option $1 requires an argument"
+			[ -n "$OBJDUMP" ] && error "option $1 defined multiple times"
+			OBJDUMP=$2
+			shift 2
+			;;
+		-s|--symbols)
+			[ -z "${2:-}" ] && error "option $1 requires an argument"
+			[ -n "$SYMBOLS" ] && error "option $1 defined multiple times"
+			SYMBOLS=$2
+			shift 2
+			;;
+		-h|--help)
+			usage
+			exit 0
+			;;
+		--)
+			shift
+			break
+			;;
+		-*)
+			error "invalid option -- ${1:-}"
+			;;
+		*)
+			break
+			;;
 	esac
 done
 
-shift $((OPTIND - 1))
-binary="$1"
+BINARY=${1:-}
+OBJDUMP=${OBJDUMP:-objdump}
 
-if [ -z "$binary" ] || [ -z "$objdump" ]; then
-	echo "usage: ${FUNCNAME} [-a ARCH] [-s SYMBOLS] BINARY" >&2
-	return 1
-fi
+! [ -f "$BINARY" ] && error "invalid input file $BINARY"
+! command -v "$OBJDUMP" && error "$OBJDUMP is not an executable file"
 
-# Get objdump flavour (GNU or LLVM)
-if $objdump --version | grep -qi gnu; then
-	version=gnu
-else
-	version=llvm
-fi
+# Set objdump options
+ARGS=(--demangle)
+[ -z "$SYMBOLS" ] && ARGS+=(--disassemble)
 
-# Get target architecture
-if [ -z "$arch" ]; then
-	if file "$binary" | grep -qi x86; then
-		arch=x86
-	fi
-fi
-
-# Set parameters
-case "$version" in
-	gnu) args=${symbols:+--disassemble="${symbols}"};;
-	llvm) args=${symbols:+--disassemble-symbols="${symbols}"};;
+case "$(flavor "$OBJDUMP")" in
+	gnu)
+		ARGS+=(--disassembler-options=intel)
+		[ -n "$SYMBOLS" ] && ARGS+=(--disassemble="$SYMBOLS")
+		;;
+	llvm)
+		ARGS+=(--x86-asm-syntax=intel)
+		[ -n "$SYMBOLS" ] && ARGS+=(--disassemble-symbols="$SYMBOLS")
+		;;
 esac
 
-case "${version}_${arch:-none}" in
-	gnu_x86) arch_args=--disassembler-options=intel;;
-	llvm_x86) arch_args=--x86-asm-syntax=intel;;
-esac
-
-$objdump --demangle ${arch_args} ${args:---disassemble} $binary
+$OBJDUMP "${ARGS[@]}" "$BINARY"
