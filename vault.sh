@@ -1,88 +1,74 @@
 #!/usr/bin/env bash
+#
+# Backup list of directories to a gocryptfs vault
 
 set -Eeuo pipefail
 
-# Backup and vault directories
-SOURCE_DIRS=(
-	$HOME/Backups
-	$HOME/Documents
-)
+# Display error message, usage, and quit
+error() {
+	local msg=${1:-error}
+	local ret=${2:-1}
 
-VAULT_DIR=${1:-$HOME/Sync/Vault}
+	echo "$0: $msg" >&2
 
-# Mount and unmount functions
-is_gocryptfs() {
-	gocryptfs --info "$1" > /dev/null 2>&1
+	exit $ret
 }
 
-vault_mount() {
-	local vault=$1
-	local mount=$2
-
-	if is_gocryptfs "$vault"; then
-		gocryptfs "$vault" "$mount"
-	else
-		cryfs "$vault" "$mount"
-	fi
-}
-
-vault_unmount() {
-	local vault=$1
-	local mount=$2
-
-	# Check that we are mount point
-	! mountpoint -q "$mount" && return 0
-
-	if is_gocryptfs "$vault"; then
-		fusermount -u "$mount"
-	else
-		cryfs-unmount "$mount"
-	fi
-}
-
+# Cleanup function
 cleanup() {
 	local ret=$?
 
-	echo "Unmounting vault at: $BACKUP_DIR"
+	echo "Unmounting vault at: $DESTINATION_DIR"
 
 	# Disable exit on failure
 	set +e
 
 	# Unmount vault and wait a bit in case resource is busy
-	vault_unmount "$VAULT_DIR" "$BACKUP_DIR"
-	sync
-	sleep 1
+	if mountpoint -q "$DESTINATION_DIR"; then
+		fusermount -u "$DESTINATION_DIR"
+		sync
+		sleep 1
+	fi
 
 	# Delete mount directory
-	[ -d "$BACKUP_DIR" ] && rmdir "$BACKUP_DIR"
+	[ -d "$DESTINATION_DIR" ] && rmdir "$DESTINATION_DIR"
 
 	exit $ret
 }
 
-# Check if vault exists
-if  [ ! -d "$VAULT_DIR" ]; then
-	echo "$0: vault directory '$VAULT_DIR' does not exist" >&2
-	exit 1
-fi
+# Backup directories
+SOURCE_DIRS=(
+	$HOME/Backups
+	$HOME/Documents
+)
+
+VAULT_DIR=${1:-${VAULT_DIR:-}}
+
+# Check if vault dir exists
+! [ -d "$VAULT_DIR" ] && error "'$VAULT_DIR': No such file or directory"
 
 # Create mount directory and setup cleanup
-BACKUP_DIR=$(mktemp --tmpdir --directory vault-mnt.XXXXXXXXXX)
-echo "Mounting vault at: $BACKUP_DIR"
+DESTINATION_DIR=$(mktemp --tmpdir --directory vault-mnt.XXXXXXXXXX)
+echo "Mounting vault at: $DESTINATION_DIR"
 trap cleanup EXIT
 
 # Mount vault
-vault_mount "$VAULT_DIR" "$BACKUP_DIR"
+if gocryptfs --info "$VAULT_DIR" > /dev/null; then
+	gocryptfs "$VAULT_DIR" "$DESTINATION_DIR"
+else
+	error "'$VAULT_DIR': Not a gocryptfs vault"
+fi
 
-# Backup directories and delete extra files
-for dir in "${SOURCE_DIRS[@]}"; do
-	if [ ! -d "$dir" ]; then
-		echo "$0: missing directory '$dir'" >&2
-		continue
-	fi
+# Backup directories
+for src in "${SOURCE_DIRS[@]}"; do
+	# Check if source dir exists
+	! [ -d "$src" ] && error "'$src': No such file or directory"
 
-	# Remove trailing '/' from path
-	dir=$(realpath "$dir")
+	# Resolve path and remove trailing '/'
+	src=$(realpath "$src")
 
-	# rsync directory (trailing '/' needed)
-	rsync -aPh --delete "$dir" "$BACKUP_DIR/"
+	# Rsync uses BSD convention
+	# - rsync -r src dst: copy content of src into dst/src
+	# - rsync -r src/ dst: copy content of src into dst
+	rsync -aPh --delete "$src" "$DESTINATION_DIR"
 done

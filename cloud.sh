@@ -18,18 +18,9 @@ error() {
 SOURCE_DIRS=(
 	$HOME/Backups
 	$HOME/Documents
-	$HOME/Ebooks
-	$HOME/Education
-	$HOME/Games
-	$HOME/Music
-	$HOME/Pictures
-	$HOME/Scans
-	$HOME/Sync
-	$HOME/Videos
-	$HOME/Workspace
 )
 
-DESTINATION_DIR=${1:-}
+DESTINATION_DIR=${1:-${CLOUD_BACKUP_DIR:-}}
 
 # Check if destination dir exists
 ! [ -d "$DESTINATION_DIR" ] && error "'$DESTINATION_DIR': No such file or directory"
