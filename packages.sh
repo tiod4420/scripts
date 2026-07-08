@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+#
+# List packages installed by different package managers
 
 set -Eeuo pipefail
 

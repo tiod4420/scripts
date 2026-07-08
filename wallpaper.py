@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-
+#
+# Generate GNOME slideshow wallpaper files
+#
 # Specs: https://gitlab.gnome.org/GNOME/gnome-desktop/-/work_items/191
 # Entry code: https://gitlab.gnome.org/GNOME/gnome-control-center/-/blob/main/panels/background/cc-background-xml.c
 # Slideshow code: https://gitlab.gnome.org/GNOME/gnome-desktop/-/blob/master/libgnome-desktop/gnome-bg/gnome-bg-slide-show.c

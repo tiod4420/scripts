@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+#
+# Reenroll TPM2 measurements into LUKS2 encrypted volume
 
 set -Eeuo pipefail
 
