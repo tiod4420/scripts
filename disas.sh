@@ -79,7 +79,7 @@ BINARY=${1:-}
 OBJDUMP=${OBJDUMP:-objdump}
 
 ! [ -f "$BINARY" ] && error "invalid input file $BINARY"
-! command -v "$OBJDUMP" && error "$OBJDUMP is not an executable file"
+! command -v "$OBJDUMP" &> /dev/null && error "$OBJDUMP is not an executable file"
 
 # Set objdump options
 ARGS=(--demangle)
