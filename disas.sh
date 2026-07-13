@@ -36,7 +36,7 @@ flavor() {
 
 	case "${version,,}" in
 		*gnu*) echo "gnu" ;;
-		*apple*|*llvm*) echo "llvm" ;;
+		*apple* | *llvm*) echo "llvm" ;;
 	esac
 }
 
@@ -46,19 +46,19 @@ SYMBOLS=
 # Parse options
 while [ "$#" -gt 0 ]; do
 	case "$1" in
-		-o|--objdump)
+		-o | --objdump)
 			[ -z "${2:-}" ] && error "option $1 requires an argument"
 			[ -n "$OBJDUMP" ] && error "option $1 defined multiple times"
 			OBJDUMP=$2
 			shift 2
 			;;
-		-s|--symbols)
+		-s | --symbols)
 			[ -z "${2:-}" ] && error "option $1 requires an argument"
 			[ -n "$SYMBOLS" ] && error "option $1 defined multiple times"
 			SYMBOLS=$2
 			shift 2
 			;;
-		-h|--help)
+		-h | --help)
 			usage
 			exit 0
 			;;

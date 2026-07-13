@@ -187,16 +187,16 @@ ARG=
 
 # Parse options
 case "${1:-}" in
-	16color|256color|base16|vim)
+	16color | 256color | base16 | vim)
 		CMD=$1
 		shift
 		;;
-	dircolors|ls|truecolor)
+	dircolors | ls | truecolor)
 		CMD=$1
 		ARG=${2:-}
 		shift ${ARG:+2}
 		;;
-	-h|--help)
+	-h | --help)
 		usage
 		exit 0
 		;;

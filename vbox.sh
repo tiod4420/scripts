@@ -37,17 +37,17 @@ VM=
 
 # Parse options
 case "${1:-}" in
-	list|running)
+	list | running)
 		CMD=$1
 		shift
 		;;
-	start|stop|poweroff)
+	start | stop | poweroff)
 		[ -z "${2:-}" ] && error "command $1 requires an argument"
 		CMD=$1
 		VM=$2
 		shift 2
 		;;
-	-h|--help)
+	-h | --help)
 		usage
 		exit 0
 		;;
