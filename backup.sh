@@ -45,5 +45,5 @@ for src in "${SOURCE_DIRS[@]}"; do
 	# Rsync uses BSD convention
 	# - rsync -r src dst: copy content of src into dst/src
 	# - rsync -r src/ dst: copy content of src into dst
-	rsync -aPh --delete "$src" "$DESTINATION_DIR"
+	rsync -aPh --delete -- "$src" "$DESTINATION_DIR"
 done

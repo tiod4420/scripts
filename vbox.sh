@@ -63,7 +63,7 @@ esac
 case "$CMD" in
 	list) VBoxManage list vms ;;
 	running) VBoxManage list runningvms ;;
-	start) VBoxManage startvm --type headless "$VM" ;;
+	start) VBoxManage startvm --type headless -- "$VM" ;;
 	stop) VBoxManage controlvm "$VM" acpipowerbutton ;;
 	poweroff) VBoxManage controlvm "$VM" poweroff ;;
 esac

@@ -25,13 +25,13 @@ cleanup() {
 
 	# Unmount vault and wait a bit in case resource is busy
 	if mountpoint -q "$DESTINATION_DIR"; then
-		fusermount -u "$DESTINATION_DIR"
+		fusermount -u -- "$DESTINATION_DIR"
 		sync
 		sleep 1
 	fi
 
 	# Delete mount directory
-	[ -d "$DESTINATION_DIR" ] && rmdir "$DESTINATION_DIR"
+	[ -d "$DESTINATION_DIR" ] && rmdir -- "$DESTINATION_DIR"
 
 	exit $ret
 }
@@ -54,7 +54,7 @@ trap cleanup EXIT
 
 # Mount vault
 if gocryptfs --info "$VAULT_DIR" > /dev/null; then
-	gocryptfs "$VAULT_DIR" "$DESTINATION_DIR"
+	gocryptfs -- "$VAULT_DIR" "$DESTINATION_DIR"
 else
 	error "'$VAULT_DIR': Not a gocryptfs vault"
 fi
@@ -65,10 +65,10 @@ for src in "${SOURCE_DIRS[@]}"; do
 	! [ -d "$src" ] && error "'$src': No such file or directory"
 
 	# Resolve path and remove trailing '/'
-	src=$(realpath "$src")
+	src=$(realpath -- "$src")
 
 	# Rsync uses BSD convention
 	# - rsync -r src dst: copy content of src into dst/src
 	# - rsync -r src/ dst: copy content of src into dst
-	rsync -aPh --delete "$src" "$DESTINATION_DIR"
+	rsync -aPh --delete -- "$src" "$DESTINATION_DIR"
 done
